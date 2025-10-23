@@ -1,14 +1,17 @@
-# Utiliser une image de base avec Jupyter Notebook
+# Use a base image with Jupyter Notebook
 FROM jupyter/base-notebook
 
-# Installer les dépendances supplémentaires si nécessaire
-# RUN pip install pandas scikit-learn seaborn
+# Copy the requirements.txt file into the container
+COPY requirements.txt .
 
-# Créer un répertoire de travail
+# Install dependencies from requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Create a working directory
 WORKDIR /notebooks
 
-# Exposer le port par défaut de Jupyter
+# Expose the default Jupyter port
 EXPOSE 8888
 
-# Commande pour lancer Jupyter Notebook
+# Command to launch Jupyter Notebook
 CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''"]
