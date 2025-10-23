@@ -4,3 +4,8 @@ matplotlib
 seaborn
 scikit-learn
 jupyter
+xgboost
+lightgbm
+catboost
+tensorflow
+scikeras
