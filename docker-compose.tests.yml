@@ -1,0 +1,13 @@
+services:
+  tests:
+    build:
+      context: ./mlflow_test
+    environment:
+      MLFLOW_TRACKING_URI: "http://mlflow:5000"
+      EXPERIMENT_NAME: ${EXPERIMENT_NAME:-XGBoost_Experiment}
+      # Set this only if you actually serve a model:
+      # MODEL_URL: "http://mlflow:5001"
+    networks:
+      - default
+    # Run once and exit with pytest's status code
+    command: ["pytest", "-q", "--maxfail=1", "--disable-warnings"]
