@@ -64,7 +64,7 @@ jobs:
     needs: [clear-containers]
     strategy:
       matrix:
-        service: [mlflow, mlflow_test, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor]
+        service: [mlflow, mlflow_test, postgres, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor]
     permissions:
       contents: 'read'
       id-token: 'write'

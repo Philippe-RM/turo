@@ -23,7 +23,7 @@ services:
 
 
   postgres:
-    image: postgres:15
+    build: ./postgres
     container_name: postgres
     environment:
       POSTGRES_USER: airflow
