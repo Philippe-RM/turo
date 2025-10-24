@@ -1,21 +1,125 @@
 version: '3'
 
 services:
-  jupyter:
-    build: ./jupyter
-    container_name: jupyter  
-    ports:
-      - "8888:8888"
-    volumes:
-      - ./jupyter/notebooks:/notebooks
-      - ./datas:/notebooks/datas
-
+  # --- EXISTANT ---
   mlflow:
     build: ./mlflow
-    container_name: mlflow   
+    image: mlflow:local          # tag local pour Airflow
+    container_name: mlflow
     ports:
-      - "5000:5000"
-      - "5001:5001"
+      - "5000:5000"              # UI tracking
+      - "5001:5001"              # serving modèle
     volumes:
       - ./datas:/app/datas
-      - ./mlruns:/app/mlruns 
+      - ./mlruns:/app/mlruns
+
+  # Image des tests (pas démarrée par compose, Airflow l'utilise)
+  mlflow_test:
+    build: ./mlflow_test
+    image: mlflow_test:local
+    profiles: ["do-not-run-by-default"]
+
+
+
+
+  postgres:
+    build: ./postgres
+    container_name: postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U airflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+
+  airflow_init:
+    build: ./airflow_init
+    container_name: airflow_init
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      DB_HOST: postgres
+      DB_PORT: 5432
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin
+      ADMIN_EMAIL: admin@example.com
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - ./init-data:/init-data
+
+  airflow_api-server:
+    build: ./airflow_api-server
+    container_name: airflow_api-server
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      DB_HOST: postgres
+      DB_PORT: 5432
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - ./logs:/opt/airflow/logs
+      - ./init-data:/init-data
+
+  airflow-scheduler:
+    build: ./airflow_scheduler
+    container_name: airflow-scheduler
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      DB_HOST: postgres
+      DB_PORT: 5432
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - ./logs:/opt/airflow/logs
+      - ./init-data:/init-data
+
+  airflow-triggerer:
+    build: ./airflow_triggerer
+    container_name: airflow-triggerer
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      DB_HOST: postgres
+      DB_PORT: 5432
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - ./logs:/opt/airflow/logs
+      - ./init-data:/init-data
+  airflow_dag-processor:
+    build: ./airflow_dag-processor
+    container_name: airflow_dag-processor
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      DB_HOST: postgres
+      DB_PORT: 5432
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - ./logs:/opt/airflow/logs
+      - ./init-data:/init-data
