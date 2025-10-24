@@ -162,15 +162,15 @@ jobs:
           echo "docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS  ${{ matrix.service }}:$TAG "
           docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS ${{ matrix.service }}:$TAG 
 
-          NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
-          # Ajout des alias réseau après le démarrage du conteneur
-          if [ -n "$NETWORK_ALIASES" ] && [ "$NETWORK_ALIASES" != "null" ]; then
-              for alias in $(echo "$NETWORK_ALIASES" | yq eval '.[]' - 2>/dev/null); do
-                  docker network connect --alias "$alias" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $alias"
-              done
-          fi
+          # NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
+          # # Ajout des alias réseau après le démarrage du conteneur
+          # if [ -n "$NETWORK_ALIASES" ] && [ "$NETWORK_ALIASES" != "null" ]; then
+          #     for alias in $(echo "$NETWORK_ALIASES" | yq eval '.[]' - 2>/dev/null); do
+          #         docker network connect --alias "$alias" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $alias"
+          #     done
+          # fi
 
-
+          docker network connect --alias "$SERVICE" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $SERVICE"
 
 
   test-containers:
@@ -245,13 +245,16 @@ jobs:
           docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS  ${{ matrix.service }}:$TAG 
           echo "docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS  ${{ matrix.service }}:$TAG "
 
-          NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
-          # Ajout des alias réseau après le démarrage du conteneur
-          if [ -n "$NETWORK_ALIASES" ] && [ "$NETWORK_ALIASES" != "null" ]; then
-              for alias in $(echo "$NETWORK_ALIASES" | yq eval '.[]' - 2>/dev/null); do
-                  docker network connect --alias "$alias" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $alias"
-              done
-          fi
+
+          # NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
+          # # Ajout des alias réseau après le démarrage du conteneur
+          # if [ -n "$NETWORK_ALIASES" ] && [ "$NETWORK_ALIASES" != "null" ]; then
+          #     for alias in $(echo "$NETWORK_ALIASES" | yq eval '.[]' - 2>/dev/null); do
+          #         docker network connect --alias "$alias" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $alias"
+          #     done
+          # fi
+
+          docker network connect --alias "$SERVICE" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $SERVICE"
         
           CONTAINER_EXIT_CODE=$(docker wait $CONTAINER_NAME)
           if [ "$CONTAINER_EXIT_CODE" -ne 0 ]; then
