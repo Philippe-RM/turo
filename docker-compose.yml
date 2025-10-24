@@ -108,7 +108,7 @@ services:
       - ./logs:/opt/airflow/logs
       - ./init-data:/init-data
   airflow_dag-processor:
-    build: ./airflow_dag_processor
+    build: ./airflow_dag-processor
     container_name: airflow_dag-processor
     depends_on:
       - postgres
