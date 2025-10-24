@@ -107,3 +107,19 @@ services:
       - ./plugins:/opt/airflow/plugins
       - ./logs:/opt/airflow/logs
       - ./init-data:/init-data
+  airflow-dag-processor:
+    build: ./airflow_dag_processor
+    container_name: airflow-dag-processor
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      DB_HOST: postgres
+      DB_PORT: 5432
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - ./logs:/opt/airflow/logs
+      - ./init-data:/init-data
