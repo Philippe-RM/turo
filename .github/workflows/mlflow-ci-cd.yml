@@ -64,7 +64,7 @@ jobs:
     needs: [clear-containers]
     strategy:
       matrix:
-        service: [mlflow]
+        service: [mlflow, mlflow_test]
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -140,9 +140,67 @@ jobs:
               done
           fi
 
-
           docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS ${{ matrix.service }}:$TAG 
 
+          NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
+          # Ajout des alias réseau après le démarrage du conteneur
+          if [ -n "$NETWORK_ALIASES" ] && [ "$NETWORK_ALIASES" != "null" ]; then
+              for alias in $(echo "$NETWORK_ALIASES" | yq eval '.[]' - 2>/dev/null); do
+                  docker network connect --alias "$alias" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $alias"
+              done
+          fi
+
+
+  test-containers:
+    runs-on: [self-hosted]
+    needs: [create-network, build, start-containers]
+    strategy:
+      matrix:
+        service: [mlflow_test]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Get version from file
+        id: get_version
+        run: echo "VERSION=$(cat .version)" >> $GITHUB_OUTPUT
+
+      - name: Test containers
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          BRANCH_NAME=${BRANCH_NAME//\//-}
+          TAG="${BRANCH_NAME}-${VERSION}"
+          NETWORK_NAME="network-${BRANCH_NAME}"
+          CONTAINER_NAME="${{ matrix.service }}-${BRANCH_NAME}"
+          SERVICE="${{ matrix.service }}"
+          CONFIG=$(yq eval ".services[\"$SERVICE\"]" "docker-compose.yml")
+
+          ENV_VARS=""
+          # Traiter les env_vars existantes
+          while read -r key value; do
+              processed_value=$(echo "$value" | sed "s/\${BRANCH_NAME}/$BRANCH_NAME/g" | sed "s/\${VERSION}/$VERSION/g")
+              echo "Clé: $key, Valeur: $processed_value"
+              ENV_VARS+=" -e $key=$processed_value"
+          done < <(yq eval ".services[\"$SERVICE\"].env_vars | to_entries | .[] | \"\(.key) \(.value)\"" "docker-compose.yaml")
+
+          CAP_ADD=$(yq eval ".cap_add | join(\",\")" <<< "$CONFIG" || true)
+          CAP_OPTIONS=""
+          if [ "$CAP_ADD" != "null" ] && [ -n "$CAP_ADD" ]; then
+              for cap in $(echo $CAP_ADD | tr ',' '\n'); do
+                  CAP_OPTIONS+=" --cap-add=$cap"
+              done
+          fi
+
+          # Extraire et traiter les ports exposés
+          EXPOSE_PORTS=$(yq eval ".ports | join(\",\")" <<< "$CONFIG" || true)
+          if [ "$EXPOSE_PORTS" != "null" ] && [ -n "$EXPOSE_PORTS" ]; then
+              for port in $(echo $EXPOSE_PORTS | tr ',' '\n'); do
+                  EXPOSE_OPTIONS+=" -p $port"
+              done
+          fi
+
+          docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS ${{ matrix.service }}:$TAG 
 
           NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
           # Ajout des alias réseau après le démarrage du conteneur
@@ -154,7 +212,7 @@ jobs:
 
   prune-unused-images:
     runs-on: [self-hosted]
-    needs: [start-containers]
+    needs: [test-containers]
     steps:
       - name: Prune Docker images
         run: |
@@ -163,7 +221,7 @@ jobs:
 
   stop-containers:
     runs-on: [self-hosted]
-    needs: [start-containers]
+    needs: [test-containers]
     if: always()
     strategy:
       matrix:
