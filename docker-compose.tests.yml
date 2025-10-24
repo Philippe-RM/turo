@@ -1,10 +1,12 @@
 services:
-  tests:
+  mlflow_tests:
     build:
       context: ./mlflow_test
+    container_name: mlflow_tests  
     environment:
       MLFLOW_TRACKING_URI: "http://mlflow:5000"
       EXPERIMENT_NAME: ${EXPERIMENT_NAME:-XGBoost_Experiment}
+
       # Set this only if you actually serve a model:
       # MODEL_URL: "http://mlflow:5001"
     networks:
