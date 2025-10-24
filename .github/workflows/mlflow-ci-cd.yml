@@ -1,0 +1,309 @@
+name: AVR25 Rakuten MLOps - CI
+run-name: Test AVR25 Rakuten MLOps actions started by ${{ github.actor }}
+on:
+  push:
+    branches:
+      - 'master'
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+env:
+  FORCE_COLOR: "1"
+jobs:
+  clear-containers:
+    runs-on: [self-hosted]
+    strategy:
+      matrix:
+        service: [mlflow, mlflow_test]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Get version from file
+        id: get_version
+        run: echo "VERSION=$(cat .version)" >> $GITHUB_OUTPUT
+      - name: Stop and remove containers
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          BRANCH_NAME=${BRANCH_NAME//\//-}
+          TAG="${BRANCH_NAME}-${VERSION}"
+          docker stop ${{ matrix.service }}-${BRANCH_NAME}|| true
+          docker rm ${{ matrix.service }}-${BRANCH_NAME} || true
+
+  clear-network:
+    runs-on: [self-hosted]
+    needs: [clear-containers]
+    steps:
+      - name: Remove Docker network
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          BRANCH_NAME=${BRANCH_NAME//\//-}
+          NETWORK_NAME="network-${BRANCH_NAME}"
+          # docker network rm $NETWORK_NAME #|| true  # Ignore l'erreur si le réseau n'existe pas ou ne peut pas être supprimé
+          if docker network inspect $NETWORK_NAME &> /dev/null; then
+            docker network rm $NETWORK_NAME
+          else
+            echo "Réseau $NETWORK_NAME n'existe pas, pas besoin de le supprimer."
+          fi
+
+  create-network:
+    runs-on: [self-hosted]
+    needs: [clear-containers, clear-network]
+    steps:
+      - name: Create Docker network
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          BRANCH_NAME=${BRANCH_NAME//\//-}
+          NETWORK_NAME="network-${BRANCH_NAME}"
+          docker network create $NETWORK_NAME || true # Ignore if network exists
+
+  build:
+    runs-on: [self-hosted]
+    needs: [clear-containers]
+    strategy:
+      matrix:
+        service: [mlflow, mlflow_test]
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Get version from file
+        id: get_version
+        run: echo "VERSION=$(cat .version)" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:v0.16.0
+
+      - name: Build services
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          BRANCH_NAME=${BRANCH_NAME//\//-}
+          TAG="${BRANCH_NAME}-${VERSION}"
+          cd ${{ matrix.service }}
+          docker build -t ${{ matrix.service }}:$TAG .
+
+  start-containers:
+    runs-on: [self-hosted]
+    needs: [create-network, build]
+    strategy:
+      matrix:
+        service: [mlflow]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Get version from file
+        id: get_version
+        run: echo "VERSION=$(cat .version)" >> $GITHUB_OUTPUT
+
+      - name: Start containers
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          BRANCH_NAME=${BRANCH_NAME//\//-}
+          TAG="${BRANCH_NAME}-${VERSION}"
+          NETWORK_NAME="network-${BRANCH_NAME}"
+          CONTAINER_NAME="${{ matrix.service }}-${BRANCH_NAME}"
+          SERVICE="${{ matrix.service }}"
+          CONFIG=$(yq eval ".services[\"$SERVICE\"]" "docker-compose.yml")
+
+          ENV_VARS=""
+          if [ "$(yq eval ".services[\"$SERVICE\"].env_vars != null" "docker-compose.yml")" = "true" ]; then
+            # Traiter les env_vars existantes
+            while read -r key value; do
+                processed_value=$(echo "$value" | sed "s/\${BRANCH_NAME}/$BRANCH_NAME/g" | sed "s/\${VERSION}/$VERSION/g")
+                echo "Clé: $key, Valeur: $processed_value"
+                ENV_VARS+=" -e $key=$processed_value"
+            done < <(yq eval ".services[\"$SERVICE\"].environment | to_entries | .[] | \"\(.key) \(.value)\"" "docker-compose.yml")
+          fi
+
+          if [ "$(yq eval ".services[\"$SERVICE\"].cap_add != null" "docker-compose.yml")" = "true" ]; then
+            CAP_ADD=$(yq eval ".cap_add | join(\",\")" <<< "$CONFIG" || true)
+            CAP_OPTIONS=""
+            if [ "$CAP_ADD" != "null" ] && [ -n "$CAP_ADD" ]; then
+                for cap in $(echo $CAP_ADD | tr ',' '\n'); do
+                    CAP_OPTIONS+=" --cap-add=$cap"
+                done
+            fi
+          fi
+
+          if [ "$(yq eval ".services[\"$SERVICE\"].ports != null" "docker-compose.yml")" = "true" ]; then
+              # Extraire et traiter les ports exposés
+              EXPOSE_PORTS=$(yq eval ".ports | join(\",\")" <<< "$CONFIG" || true)
+              if [ "$EXPOSE_PORTS" != "null" ] && [ -n "$EXPOSE_PORTS" ]; then
+                  for port in $(echo $EXPOSE_PORTS | tr ',' '\n'); do
+                      # Extraire uniquement la partie à droite du ":"
+                      CONTAINER_PORT=$(echo $port | cut -d':' -f2)
+                      EXPOSE_OPTIONS+=" --expose=$CONTAINER_PORT"
+                  done
+              fi
+          fi
+
+          # Ajouter la gestion des volumes
+          VOLUMES_OPTIONS=""
+          if [ "$(yq eval ".services[\"$SERVICE\"].volumes != null" "docker-compose.yml")" = "true" ]; then
+            VOLUMES=$(yq eval ".volumes | join(\",\")" <<< "$CONFIG" || true)
+            if [ "$VOLUMES" != "null" ] && [ -n "$VOLUMES" ]; then
+                for volume in $(echo $VOLUMES | tr ',' '\n'); do
+                    VOLUMES_OPTIONS+=" -v $volume"
+                done
+            fi
+          fi
+
+          echo "docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS  ${{ matrix.service }}:$TAG "
+          docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS ${{ matrix.service }}:$TAG 
+
+          # NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
+          # # Ajout des alias réseau après le démarrage du conteneur
+          # if [ -n "$NETWORK_ALIASES" ] && [ "$NETWORK_ALIASES" != "null" ]; then
+          #     for alias in $(echo "$NETWORK_ALIASES" | yq eval '.[]' - 2>/dev/null); do
+          #         docker network connect --alias "$alias" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $alias"
+          #     done
+          # fi
+
+          docker network connect --alias "$SERVICE" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $SERVICE"
+
+
+  test-containers:
+    runs-on: [self-hosted]
+    needs: [create-network, build, start-containers]
+    strategy:
+      matrix:
+        service: [mlflow_test]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Get version from file
+        id: get_version
+        run: echo "VERSION=$(cat .version)" >> $GITHUB_OUTPUT
+
+      - name: Test containers
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          BRANCH_NAME=${BRANCH_NAME//\//-}
+          TAG="${BRANCH_NAME}-${VERSION}"
+          NETWORK_NAME="network-${BRANCH_NAME}"
+          CONTAINER_NAME="${{ matrix.service }}-${BRANCH_NAME}"
+          SERVICE="${{ matrix.service }}"
+          CONFIG=$(yq eval ".services[\"$SERVICE\"]" "docker-compose.tests.yml")
+
+          ENV_VARS=""
+          # Traiter les env_vars existantes
+          if [ "$(yq eval ".services[\"$SERVICE\"].env_vars != null" "docker-compose.tests.yml")" = "true" ]; then
+            while read -r key value; do
+                processed_value=$(echo "$value" | sed "s/\${BRANCH_NAME}/$BRANCH_NAME/g" | sed "s/\${VERSION}/$VERSION/g")
+                echo "Clé: $key, Valeur: $processed_value"
+                ENV_VARS+=" -e $key=$processed_value"
+            done < <(yq eval ".services[\"$SERVICE\"].environment | to_entries | .[] | \"\(.key) \(.value)\"" "docker-compose.tests.yml")
+          fi
+
+          if [ "$(yq eval ".services[\"$SERVICE\"].cap_add != null" "docker-compose.tests.yml")" = "true" ]; then
+            CAP_ADD=$(yq eval ".cap_add | join(\",\")" <<< "$CONFIG" || true)
+            CAP_OPTIONS=""
+            if [ "$CAP_ADD" != "null" ] && [ -n "$CAP_ADD" ]; then
+                for cap in $(echo $CAP_ADD | tr ',' '\n'); do
+                    CAP_OPTIONS+=" --cap-add=$cap"
+                done
+            fi
+          fi
+
+          if [ "$(yq eval ".services[\"$SERVICE\"].ports != null" "docker-compose.tests.yml")" = "true" ]; then
+            # Extraire et traiter les ports exposés
+            EXPOSE_PORTS=$(yq eval ".ports | join(\",\")" <<< "$CONFIG" || true)
+            if [ "$EXPOSE_PORTS" != "null" ] && [ -n "$EXPOSE_PORTS" ]; then
+                for port in $(echo $EXPOSE_PORTS | tr ',' '\n'); do
+                      CONTAINER_PORT=$(echo $port | cut -d':' -f2)
+                      EXPOSE_OPTIONS+=" --expose=$CONTAINER_PORT"
+                done
+            fi
+          fi
+
+
+          # Ajouter la gestion des volumes
+          VOLUMES_OPTIONS=""
+          if [ "$(yq eval ".services[\"$SERVICE\"].volumes != null" "docker-compose.tests.yml")" = "true" ]; then
+            VOLUMES=$(yq eval ".volumes | join(\",\")" <<< "$CONFIG" || true)
+            if [ "$VOLUMES" != "null" ] && [ -n "$VOLUMES" ]; then
+                for volume in $(echo $VOLUMES | tr ',' '\n'); do
+                    VOLUMES_OPTIONS+=" -v $volume"
+                done
+            fi
+          fi
+
+
+          docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS  ${{ matrix.service }}:$TAG 
+          echo "docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS  ${{ matrix.service }}:$TAG "
+
+
+          # NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
+          # # Ajout des alias réseau après le démarrage du conteneur
+          # if [ -n "$NETWORK_ALIASES" ] && [ "$NETWORK_ALIASES" != "null" ]; then
+          #     for alias in $(echo "$NETWORK_ALIASES" | yq eval '.[]' - 2>/dev/null); do
+          #         docker network connect --alias "$alias" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $alias"
+          #     done
+          # fi
+
+          docker network connect --alias "$SERVICE" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $SERVICE"
+        
+          CONTAINER_EXIT_CODE=$(docker wait $CONTAINER_NAME)
+          if [ "$CONTAINER_EXIT_CODE" -ne 0 ]; then
+              echo "Container ${{ matrix.service }} exited with code $CONTAINER_EXIT_CODE"
+              exit $CONTAINER_EXIT_CODE
+          fi
+
+  prune-unused-images:
+    runs-on: [self-hosted]
+    needs: [test-containers]
+    steps:
+      - name: Prune Docker images
+        run: |
+          echo "Removing all unused images..."
+          docker system prune -f
+
+  stop-containers:
+    runs-on: [self-hosted]
+    needs: [test-containers]
+    if: always()
+    strategy:
+      matrix:
+        service: [mlflow, mlflow_test]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Get version from file
+        id: get_version
+        run: echo "VERSION=$(cat .version)" >> $GITHUB_OUTPUT
+      - name: Stop and remove containers
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          BRANCH_NAME=${BRANCH_NAME//\//-}
+          # Arrêter et retirer le conteneur
+          docker stop ${{ matrix.service }}-${BRANCH_NAME} || true
+          # docker rm ${{ matrix.service }}-${BRANCH_NAME} || true
+
+  remove-network:
+    runs-on: [self-hosted]
+    needs: stop-containers  
+    steps:
+      - name: Remove Docker network
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          BRANCH_NAME=${BRANCH_NAME//\//-}
+          NETWORK_NAME="network-${BRANCH_NAME}"
+          if docker network inspect $NETWORK_NAME &> /dev/null; then
+            docker network rm $NETWORK_NAME
+          else
+            echo "Réseau $NETWORK_NAME n'existe pas, pas besoin de le supprimer."
+          fi
