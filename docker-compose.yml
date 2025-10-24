@@ -36,9 +36,9 @@ services:
       retries: 20
 
 
-  airflow-init:
+  airflow_init:
     build: ./airflow_init
-    container_name: airflow-init
+    container_name: airflow_init
     depends_on:
       - postgres
     environment:
@@ -107,9 +107,9 @@ services:
       - ./plugins:/opt/airflow/plugins
       - ./logs:/opt/airflow/logs
       - ./init-data:/init-data
-  airflow-dag-processor:
+  airflow_dag-processor:
     build: ./airflow_dag_processor
-    container_name: airflow-dag-processor
+    container_name: airflow_dag-processor
     depends_on:
       - postgres
       - airflow-init
