@@ -114,7 +114,7 @@ jobs:
           NETWORK_NAME="network-${BRANCH_NAME}"
           CONTAINER_NAME="${{ matrix.service }}-${BRANCH_NAME}"
           SERVICE="${{ matrix.service }}"
-          CONFIG=$(yq eval ".services[\"$SERVICE\"]" "services_config.yaml")
+          CONFIG=$(yq eval ".services[\"$SERVICE\"]" "docker-compose.yml")
 
           ENV_VARS=""
           # Traiter les env_vars existantes
@@ -122,7 +122,7 @@ jobs:
               processed_value=$(echo "$value" | sed "s/\${BRANCH_NAME}/$BRANCH_NAME/g" | sed "s/\${VERSION}/$VERSION/g")
               echo "Clé: $key, Valeur: $processed_value"
               ENV_VARS+=" -e $key=$processed_value"
-          done < <(yq eval ".services[\"$SERVICE\"].env_vars | to_entries | .[] | \"\(.key) \(.value)\"" "services_config.yaml")
+          done < <(yq eval ".services[\"$SERVICE\"].env_vars | to_entries | .[] | \"\(.key) \(.value)\"" "docker-compose.yaml")
 
           CAP_ADD=$(yq eval ".cap_add | join(\",\")" <<< "$CONFIG" || true)
           CAP_OPTIONS=""
@@ -133,28 +133,16 @@ jobs:
           fi
 
           # Extraire et traiter les ports exposés
-          EXPOSE_PORTS=$(yq eval ".expose_ports | join(\",\")" <<< "$CONFIG" || true)
+          EXPOSE_PORTS=$(yq eval ".ports | join(\",\")" <<< "$CONFIG" || true)
           if [ "$EXPOSE_PORTS" != "null" ] && [ -n "$EXPOSE_PORTS" ]; then
               for port in $(echo $EXPOSE_PORTS | tr ',' '\n'); do
-                  EXPOSE_OPTIONS+=" --expose=$port"
+                  EXPOSE_OPTIONS+=" -p $port"
               done
           fi
 
-          COMMAND=$(yq eval ".command" <<< "$CONFIG")
-          if [ -z "$COMMAND" ] || [ "$COMMAND" = "null" ]; then
-            COMMAND=""
-          fi
 
-          RUN_AS_ROOT=$(yq eval ".run_as_root" <<< "$CONFIG")
-          if [ -z "$RUN_AS_ROOT" ] || [ "$RUN_AS_ROOT" = "null" ]; then
-            RUN_AS_ROOT=false
-          fi
+          docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS ${{ matrix.service }}:$TAG 
 
-          if [ "$RUN_AS_ROOT" = true ]; then
-            docker run -d --user root $CAP_OPTIONS --name $CONTAINER_NAME  $EXPOSE_OPTIONS $ENV_VARS ${{ matrix.service }}:$TAG $COMMAND
-          else
-            docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS ${{ matrix.service }}:$TAG $COMMAND
-          fi
 
           NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
           # Ajout des alias réseau après le démarrage du conteneur
