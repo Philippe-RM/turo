@@ -4,7 +4,7 @@ services:
       context: ./mlflow_test
     container_name: mlflow_tests  
     environment:
-      MLFLOW_TRACKING_URI: "http://mlflow:5000"
+      MLFLOW_TRACKING_URI: "http://mlflow:5001"
       EXPERIMENT_NAME: ${EXPERIMENT_NAME:-XGBoost_Experiment}
     # Run once and exit with pytest's status code
     command: ["pytest", "-q", "--maxfail=1", "--disable-warnings"]

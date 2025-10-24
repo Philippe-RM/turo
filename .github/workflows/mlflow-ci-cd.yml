@@ -117,27 +117,33 @@ jobs:
           CONFIG=$(yq eval ".services[\"$SERVICE\"]" "docker-compose.yml")
 
           ENV_VARS=""
-          # Traiter les env_vars existantes
-          while read -r key value; do
-              processed_value=$(echo "$value" | sed "s/\${BRANCH_NAME}/$BRANCH_NAME/g" | sed "s/\${VERSION}/$VERSION/g")
-              echo "Clé: $key, Valeur: $processed_value"
-              ENV_VARS+=" -e $key=$processed_value"
-          done < <(yq eval ".services[\"$SERVICE\"].env_vars | to_entries | .[] | \"\(.key) \(.value)\"" "docker-compose.yaml")
-
-          CAP_ADD=$(yq eval ".cap_add | join(\",\")" <<< "$CONFIG" || true)
-          CAP_OPTIONS=""
-          if [ "$CAP_ADD" != "null" ] && [ -n "$CAP_ADD" ]; then
-              for cap in $(echo $CAP_ADD | tr ',' '\n'); do
-                  CAP_OPTIONS+=" --cap-add=$cap"
-              done
+          if [ "$(yq eval ".services[\"$SERVICE\"].env_vars != null" "docker-compose.yml")" = "true" ]; then
+            # Traiter les env_vars existantes
+            while read -r key value; do
+                processed_value=$(echo "$value" | sed "s/\${BRANCH_NAME}/$BRANCH_NAME/g" | sed "s/\${VERSION}/$VERSION/g")
+                echo "Clé: $key, Valeur: $processed_value"
+                ENV_VARS+=" -e $key=$processed_value"
+            done < <(yq eval ".services[\"$SERVICE\"].environment | to_entries | .[] | \"\(.key) \(.value)\"" "docker-compose.yml")
           fi
 
-          # Extraire et traiter les ports exposés
-          EXPOSE_PORTS=$(yq eval ".ports | join(\",\")" <<< "$CONFIG" || true)
-          if [ "$EXPOSE_PORTS" != "null" ] && [ -n "$EXPOSE_PORTS" ]; then
-              for port in $(echo $EXPOSE_PORTS | tr ',' '\n'); do
-                  EXPOSE_OPTIONS+=" -p $port"
-              done
+          if [ "$(yq eval ".services[\"$SERVICE\"].cap_add != null" "docker-compose.yml")" = "true" ]; then
+            CAP_ADD=$(yq eval ".cap_add | join(\",\")" <<< "$CONFIG" || true)
+            CAP_OPTIONS=""
+            if [ "$CAP_ADD" != "null" ] && [ -n "$CAP_ADD" ]; then
+                for cap in $(echo $CAP_ADD | tr ',' '\n'); do
+                    CAP_OPTIONS+=" --cap-add=$cap"
+                done
+            fi
+          fi
+
+          if [ "$(yq eval ".services[\"$SERVICE\"].ports != null" "docker-compose.yml")" = "true" ]; then
+            # Extraire et traiter les ports exposés
+            EXPOSE_PORTS=$(yq eval ".ports | join(\",\")" <<< "$CONFIG" || true)
+            if [ "$EXPOSE_PORTS" != "null" ] && [ -n "$EXPOSE_PORTS" ]; then
+                for port in $(echo $EXPOSE_PORTS | tr ',' '\n'); do
+                    EXPOSE_OPTIONS+=" -p $port"
+                done
+            fi
           fi
 
           docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS ${{ matrix.service }}:$TAG 
@@ -174,30 +180,36 @@ jobs:
           NETWORK_NAME="network-${BRANCH_NAME}"
           CONTAINER_NAME="${{ matrix.service }}-${BRANCH_NAME}"
           SERVICE="${{ matrix.service }}"
-          CONFIG=$(yq eval ".services[\"$SERVICE\"]" "docker-compose.yml")
+          CONFIG=$(yq eval ".services[\"$SERVICE\"]" "docker-compose.tests.yml")
 
           ENV_VARS=""
           # Traiter les env_vars existantes
-          while read -r key value; do
-              processed_value=$(echo "$value" | sed "s/\${BRANCH_NAME}/$BRANCH_NAME/g" | sed "s/\${VERSION}/$VERSION/g")
-              echo "Clé: $key, Valeur: $processed_value"
-              ENV_VARS+=" -e $key=$processed_value"
-          done < <(yq eval ".services[\"$SERVICE\"].env_vars | to_entries | .[] | \"\(.key) \(.value)\"" "docker-compose.yaml")
-
-          CAP_ADD=$(yq eval ".cap_add | join(\",\")" <<< "$CONFIG" || true)
-          CAP_OPTIONS=""
-          if [ "$CAP_ADD" != "null" ] && [ -n "$CAP_ADD" ]; then
-              for cap in $(echo $CAP_ADD | tr ',' '\n'); do
-                  CAP_OPTIONS+=" --cap-add=$cap"
-              done
+          if [ "$(yq eval ".services[\"$SERVICE\"].env_vars != null" "docker-compose.tests.yml")" = "true" ]; then
+            while read -r key value; do
+                processed_value=$(echo "$value" | sed "s/\${BRANCH_NAME}/$BRANCH_NAME/g" | sed "s/\${VERSION}/$VERSION/g")
+                echo "Clé: $key, Valeur: $processed_value"
+                ENV_VARS+=" -e $key=$processed_value"
+            done < <(yq eval ".services[\"$SERVICE\"].environment | to_entries | .[] | \"\(.key) \(.value)\"" "docker-compose.tests.yml")
           fi
 
-          # Extraire et traiter les ports exposés
-          EXPOSE_PORTS=$(yq eval ".ports | join(\",\")" <<< "$CONFIG" || true)
-          if [ "$EXPOSE_PORTS" != "null" ] && [ -n "$EXPOSE_PORTS" ]; then
-              for port in $(echo $EXPOSE_PORTS | tr ',' '\n'); do
-                  EXPOSE_OPTIONS+=" -p $port"
-              done
+          if [ "$(yq eval ".services[\"$SERVICE\"].cap_add != null" "docker-compose.tests.yml")" = "true" ]; then
+            CAP_ADD=$(yq eval ".cap_add | join(\",\")" <<< "$CONFIG" || true)
+            CAP_OPTIONS=""
+            if [ "$CAP_ADD" != "null" ] && [ -n "$CAP_ADD" ]; then
+                for cap in $(echo $CAP_ADD | tr ',' '\n'); do
+                    CAP_OPTIONS+=" --cap-add=$cap"
+                done
+            fi
+          fi
+
+          if [ "$(yq eval ".services[\"$SERVICE\"].ports != null" "docker-compose.tests.yml")" = "true" ]; then
+            # Extraire et traiter les ports exposés
+            EXPOSE_PORTS=$(yq eval ".ports | join(\",\")" <<< "$CONFIG" || true)
+            if [ "$EXPOSE_PORTS" != "null" ] && [ -n "$EXPOSE_PORTS" ]; then
+                for port in $(echo $EXPOSE_PORTS | tr ',' '\n'); do
+                    EXPOSE_OPTIONS+=" -p $port"
+                done
+            fi
           fi
 
           docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS ${{ matrix.service }}:$TAG 
@@ -208,6 +220,12 @@ jobs:
               for alias in $(echo "$NETWORK_ALIASES" | yq eval '.[]' - 2>/dev/null); do
                   docker network connect --alias "$alias" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $alias"
               done
+          fi
+        
+          CONTAINER_EXIT_CODE=$(docker wait $CONTAINER_NAME)
+          if [ "$CONTAINER_EXIT_CODE" -ne 0 ]; then
+              echo "Container ${{ matrix.service }} exited with code $CONTAINER_EXIT_CODE"
+              exit $CONTAINER_EXIT_CODE
           fi
 
   prune-unused-images:
@@ -225,7 +243,7 @@ jobs:
     if: always()
     strategy:
       matrix:
-        service: [mlflow]
+        service: [mlflow, mlflow_test]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
