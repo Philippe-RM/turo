@@ -2,10 +2,12 @@
 FROM python:3.8-slim
 
 # ---- Default env (override in compose/CI) ----
-ENV MLFLOW_TRACKING_URI="http://mlflow:5000" \
-    EXPERIMENT_NAME="XGBoost_Experiment" \
-    MODEL_URL="" \
-    WAIT_TIMEOUT="60"
+
+ENV MLFLOW_TRACKING_URI ${MLFLOW_TRACKING_URI:-"http://mlflow:5000"}
+ENV EXPERIMENT_NAME ${EXPERIMENT_NAME:-"XGBoost_Experiment"}
+ENV MODEL_URL ${MODEL_URL:-"http://mlflow:5001"}
+ENV WAIT_TIMEOUT ${WAIT_TIMEOUT:-"60" }
+
 
 WORKDIR /tests
 COPY requirements-test.txt .

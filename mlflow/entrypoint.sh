@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# --- Ensure required directories exist (including sqlite backend path) ---
+# Ensure required directories exist (including sqlite backend path)
+# (The MLflow Tracking server started below serves the UI as well.)
 if [[ "$BACKEND_URI" == sqlite:* ]]; then
   db_path="${BACKEND_URI#sqlite:////}"
   mkdir -p "$(dirname "$db_path")" || true
@@ -10,13 +11,15 @@ mkdir -p "$ARTIFACT_ROOT" "$LOG_DIR"
 : > "$ACCESS_LOG_FILE" || true
 : > "$ERROR_LOG_FILE" || true
 
-# --- Build Gunicorn options: daemonize + file outputs + log level ---
+# Build Gunicorn options: daemonize + file outputs + log level
 # Note: when running as a daemon, logging to "-" (stdout) is not recommended.
 GUNICORN_OPTS="--daemon --log-level ${GUNICORN_LOG_LEVEL} \
                --access-logfile ${ACCESS_LOG_FILE} \
                --error-logfile ${ERROR_LOG_FILE}"
 
-# 1) Start the MLflow Tracking server (UI included) as a daemon via Gunicorn
+# ——————————————————————————————
+# 1) Start the MLflow Tracking server (includes the UI) as a daemon via Gunicorn
+# ——————————————————————————————
 mlflow server \
   --backend-store-uri "$BACKEND_URI" \
   --default-artifact-root "file://$ARTIFACT_ROOT" \
@@ -24,13 +27,22 @@ mlflow server \
   --port "$TRACKING_PORT" \
   --gunicorn-opts "$GUNICORN_OPTS"
 
-# Point the CLI to this tracking server
 export MLFLOW_TRACKING_URI="http://$TRACKING_HOST:$TRACKING_PORT"
 
-# 2) Wait for the MLflow server to be ready (pure CLI probe, no embedded Python)
+# Wait for MLflow server/UI to be ready (probe via Python API)
 echo "Attente du serveur MLflow (UI) sur $MLFLOW_TRACKING_URI…"
 for i in {1..60}; do
-  if mlflow experiments search >/dev/null 2>&1; then
+  if python - <<'PY'
+import os, sys, mlflow
+try:
+    mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
+    from mlflow.tracking import MlflowClient
+    MlflowClient().search_experiments()  # succeeds when server & UI app are up
+    sys.exit(0)
+except Exception:
+    sys.exit(1)
+PY
+  then
     echo "Serveur MLflow + UI prêt."
     break
   fi
@@ -42,24 +54,65 @@ for i in {1..60}; do
   fi
 done
 
-# 3) Optional model registration (idempotent behavior depends on your backend)
-# Requirements:
-#   - MODEL_URI like: runs:/<run_id>/model  (or another valid MLflow model URI)
-#   - MODEL_NAME: target registered model name
-if [[ -n "${MODEL_URI:-}" && -n "${MODEL_NAME:-}" ]]; then
-  echo "Enregistrement du modèle: $MODEL_URI -> $MODEL_NAME"
+# ——————————————————————————————
+# 2) Get or create the Experiment and retrieve its ID
+# ——————————————————————————————
+EXPERIMENT_ID=$(python - <<'PY'
+import os, mlflow
+name = os.environ.get("EXPERIMENT_NAME","XGBoost_Experiment")
+art_root = os.environ.get("ARTIFACT_ROOT","/mlflow/artifacts").rstrip("/")
+client = mlflow.MlflowClient()
+exp = client.get_experiment_by_name(name)
+if exp is None:
+    eid = client.create_experiment(name, artifact_location=f"file://{art_root}/{name}")
+else:
+    eid = exp.experiment_id
+print(eid)
+PY
+)
+export EXPERIMENT_ID
 
-  # If REGISTER_AWAIT_SECONDS is set, wait for registration to complete
-  if [[ -n "${REGISTER_AWAIT_SECONDS:-}" ]]; then
-    mlflow models register -m "$MODEL_URI" -n "$MODEL_NAME" \
-      --await-registration-for "$REGISTER_AWAIT_SECONDS"
-  else
-    mlflow models register -m "$MODEL_URI" -n "$MODEL_NAME"
-  fi
-else
-  echo "MODEL_URI et/ou MODEL_NAME non définis → aucun enregistrement effectué."
-  echo "Définis, par ex.: MODEL_URI='runs:/<run_id>/model'  MODEL_NAME='XGBoostModel'"
+echo "Experiment: $EXPERIMENT_NAME (id=$EXPERIMENT_ID)"
+
+# ——————————————————————————————
+# 3) Run the MLflow project (no Conda in image -> use local env manager)
+# ——————————————————————————————
+if [[ ! -f "$PROJECT_DIR/MLproject" ]]; then
+  echo "ERREUR: fichier MLproject introuvable à l’emplacement: $PROJECT_DIR"
+  exit 1
 fi
 
-# 4) Keep container alive and stream logs (since server runs as a daemon)
-exec tail -F "$ERROR_LOG_FILE" "$ACCESS_LOG_FILE"
+echo "Exécution du projet: $PROJECT_DIR"
+mlflow run "$PROJECT_DIR" --experiment-id "$EXPERIMENT_ID" --env-manager local
+
+# ——————————————————————————————
+# 4) Fetch the latest FINISHED run that contains a 'model' artifact
+# ——————————————————————————————
+RUN_ID=$(python - <<'PY'
+import os, mlflow
+client = mlflow.MlflowClient()
+exp_id = os.environ["EXPERIMENT_ID"]
+runs = client.search_runs([exp_id], order_by=["attributes.start_time DESC"], max_results=50)
+for r in runs:
+    if r.info.status == "FINISHED":
+        try:
+            client.list_artifacts(r.info.run_id, "model")
+            print(r.info.run_id)
+            break
+        except Exception:
+            continue
+PY
+)
+
+# ——————————————————————————————
+# 5) Serve the model (blocking) or keep container alive by tailing logs
+# ——————————————————————————————
+if [[ -n "${RUN_ID:-}" ]]; then
+  echo "Serving modèle du run: $RUN_ID"
+  exec mlflow models serve -m "runs:/$RUN_ID/model" \
+       --env-manager local --host 0.0.0.0 -p "$MODEL_PORT"
+else
+  echo "Aucun run terminé avec un artefact 'model' n’a été trouvé."
+  echo "Le serveur MLflow (UI incluse) tourne en arrière-plan. Suivi des logs…"
+  exec tail -F "$ERROR_LOG_FILE" "$ACCESS_LOG_FILE"
+fi
