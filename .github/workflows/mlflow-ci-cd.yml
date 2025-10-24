@@ -146,7 +146,21 @@ jobs:
             fi
           fi
 
-          docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS ${{ matrix.service }}:$TAG 
+
+
+          # Ajouter la gestion des volumes
+          VOLUMES_OPTIONS=""
+          if [ "$(yq eval ".services[\"$SERVICE\"].volumes != null" "docker-compose.yml")" = "true" ]; then
+            VOLUMES=$(yq eval ".volumes | join(\",\")" <<< "$CONFIG" || true)
+            if [ "$VOLUMES" != "null" ] && [ -n "$VOLUMES" ]; then
+                for volume in $(echo $VOLUMES | tr ',' '\n'); do
+                    VOLUMES_OPTIONS+=" -v $volume"
+                done
+            fi
+          fi
+
+
+          docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS  ${{ matrix.service }}:$TAG 
 
           NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
           # Ajout des alias réseau après le démarrage du conteneur
@@ -214,7 +228,20 @@ jobs:
             fi
           fi
 
-          docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS ${{ matrix.service }}:$TAG 
+
+          # Ajouter la gestion des volumes
+          VOLUMES_OPTIONS=""
+          if [ "$(yq eval ".services[\"$SERVICE\"].volumes != null" "docker-compose.tests.yml")" = "true" ]; then
+            VOLUMES=$(yq eval ".volumes | join(\",\")" <<< "$CONFIG" || true)
+            if [ "$VOLUMES" != "null" ] && [ -n "$VOLUMES" ]; then
+                for volume in $(echo $VOLUMES | tr ',' '\n'); do
+                    VOLUMES_OPTIONS+=" -v $volume"
+                done
+            fi
+          fi
+
+
+          docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS ${{ matrix.service }}:$TAG 
 
           NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
           # Ajout des alias réseau après le démarrage du conteneur
