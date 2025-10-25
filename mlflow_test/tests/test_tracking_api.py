@@ -8,8 +8,9 @@ def test_tracking_ui_http_ok(tracking_uri):
     r = requests.get(tracking_uri, allow_redirects=True, timeout=5)
     assert r.status_code < 400
 
-def test_experiment_exists(experiment_name):
-    """Expected experiment should exist (created by entrypoint or manually)."""
+def test_experiments_exist(experiment_names):
+    """Expected experiments should exist (created by entrypoint or manually)."""
     client = MlflowClient()
-    exp = client.get_experiment_by_name(experiment_name)
-    assert exp is not None, f"Experiment '{experiment_name}' not found"
+    for name in experiment_names:
+        exp = client.get_experiment_by_name(name)
+        assert exp is not None, f"Experiment '{name}' not found"

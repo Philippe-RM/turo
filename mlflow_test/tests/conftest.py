@@ -32,10 +32,16 @@ def tracking_ready(tracking_uri):
     MlflowClient().search_experiments()
 
 @pytest.fixture(scope="session")
-def experiment_name() -> str:
-    return os.getenv("EXPERIMENT_NAME", "XGBoost_Experiment")
+def experiment_names() -> list:
+    names = os.getenv("EXPERIMENT_NAMES", "XGBoost0, XGBoost1, XGBoost2")
+    return [name.strip() for name in names.split(",")]
 
 @pytest.fixture(scope="session")
-def model_url() -> str:
-    # Example: http://mlflow:5001
-    return os.getenv("MODEL_URL", "")
+def model_urls() -> list:
+    urls = os.getenv("MODEL_URLS", "http://mlflow:5001, http://mlflow:5002, http://mlflow:5003")
+    return [url.strip() for url in urls.split(",")]
+
+@pytest.fixture(scope="session")
+def model_url(model_urls):
+    """Provide the first model URL by default for backward compatibility."""
+    return model_urls[0] if model_urls else None
