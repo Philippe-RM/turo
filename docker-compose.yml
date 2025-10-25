@@ -1,5 +1,13 @@
 services:
   # --- EXISTANT ---
+
+  jupyter:
+    build: ./jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./jupyter/notebooks:/notebooks
+
   mlflow:
     build: ./mlflow
     image: mlflow:local          # tag local pour Airflow
