@@ -6,7 +6,6 @@ services:
     environment:
       MLFLOW_TRACKING_URI: "http://mlflow:5000"
       EXPERIMENT_NAMES: "XGBoost0, XGBoost1, XGBoost2"
-      MODEL_URLS: "http://mlflow:5001, http://mlflow:5002, http://mlflow:5003"
       WAIT_TIMEOUT: "10"
     # Run once and exit with pytest's status code
     command: ["pytest", "-q", "--maxfail=1", "--disable-warnings"]
