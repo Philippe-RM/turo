@@ -19,9 +19,6 @@ services:
     image: mlflow_test:local
     profiles: ["do-not-run-by-default"]
 
-
-
-
   postgres:
     build: ./postgres
     container_name: postgres
@@ -34,7 +31,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-
 
   airflow_init:
     build: ./airflow_init
@@ -51,7 +47,6 @@ services:
       ADMIN_EMAIL: admin@example.com
     volumes:
       - ./dags:/opt/airflow/dags
-      - ./plugins:/opt/airflow/plugins
       - ./init-data:/init-data
 
   airflow_api-server:
@@ -70,8 +65,6 @@ services:
       DB_PORT: 5432
     volumes:
       - ./dags:/opt/airflow/dags
-      - ./plugins:/opt/airflow/plugins
-      - ./logs:/opt/airflow/logs
       - ./init-data:/init-data
 
   airflow-scheduler:
@@ -87,8 +80,6 @@ services:
       DB_PORT: 5432
     volumes:
       - ./dags:/opt/airflow/dags
-      - ./plugins:/opt/airflow/plugins
-      - ./logs:/opt/airflow/logs
       - ./init-data:/init-data
 
   airflow-triggerer:
@@ -104,9 +95,8 @@ services:
       DB_PORT: 5432
     volumes:
       - ./dags:/opt/airflow/dags
-      - ./plugins:/opt/airflow/plugins
-      - ./logs:/opt/airflow/logs
       - ./init-data:/init-data
+
   airflow_dag-processor:
     build: ./airflow_dag-processor
     container_name: airflow_dag-processor
@@ -120,6 +110,4 @@ services:
       DB_PORT: 5432
     volumes:
       - ./dags:/opt/airflow/dags
-      - ./plugins:/opt/airflow/plugins
-      - ./logs:/opt/airflow/logs
       - ./init-data:/init-data
