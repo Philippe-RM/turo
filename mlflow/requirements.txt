@@ -3,3 +3,4 @@ scikit-learn
 xgboost
 mlflow
 prometheus_flask_exporter
+ray[default]==2.50.1
