@@ -1,2 +1,3 @@
 jupyter/notebooks/analyses/catboost_info/*
 mlruns/*
+**/__pycache__/
