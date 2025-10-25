@@ -15,17 +15,22 @@ mkdir -p "$ARTIFACT_ROOT" "$LOG_DIR"
 # Note: when running as a daemon, logging to "-" (stdout) is not recommended.
 GUNICORN_OPTS="--daemon --log-level ${GUNICORN_LOG_LEVEL} \
                --access-logfile ${ACCESS_LOG_FILE} \
-               --error-logfile ${ERROR_LOG_FILE}"
+               --error-logfile ${ERROR_LOG_FILE} \
+               --workers 4 \
+               --statsd-host=statsd-exporter:9125 \
+               --statsd-prefix=mlflow "
 
 # ——————————————————————————————
 # 1) Start the MLflow Tracking server (includes the UI) as a daemon via Gunicorn
 # ——————————————————————————————
-mlflow server \
+mlflow server --expose-prometheus "/mlflow-metrics" \
   --backend-store-uri "$BACKEND_URI" \
   --default-artifact-root "file://$ARTIFACT_ROOT" \
   --host 0.0.0.0 \
   --port "$TRACKING_PORT" \
-  --gunicorn-opts "$GUNICORN_OPTS"
+  --gunicorn-opts "$GUNICORN_OPTS" \
+  
+  
 
 export MLFLOW_TRACKING_URI="http://$TRACKING_HOST:$TRACKING_PORT"
 

@@ -191,3 +191,37 @@ services:
     volumes:
       - ./dags:/opt/airflow/dags
       - ./init-data:/init-data
+
+  prometheus:
+    build: ./prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/yaml/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+
+  statsd-exporter:
+    build: ./statsd-exporter
+    container_name: statsd-exporter
+    command: >
+      --statsd.listen-udp=:9125
+      --web.listen-address=:9102
+    ports:
+      - "9102:9102"            # Expose si Prometheus est hors Docker
+
+
+  grafana:
+    build: ./grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin   # change-le après le 1er login
+      GF_USERS_DEFAULT_THEME: dark
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/provisioning/dashboards/json:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
