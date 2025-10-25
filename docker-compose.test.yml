@@ -1,0 +1,29 @@
+services:
+  mlflow_test:
+    build:
+      context: ./mlflow_test
+    container_name: mlflow_test
+    environment:
+      MLFLOW_TRACKING_URI: "http://mlflow:5000"
+      EXPERIMENT_NAME: ${EXPERIMENT_NAME:-XGBoost_Experiment}
+    # Run once and exit with pytest's status code
+    command: ["pytest", "-q", "--maxfail=1", "--disable-warnings"]
+
+
+  airflow_test:
+    build:
+      context: ./airflow_test
+    container_name: airflow_test
+    environment:
+      AIRFLOW_UI_BASE_URL: "http://airflow_api-server:8080"
+      AIRFLOW_API_PREFIX: "/api/v2"
+      DAG_IDS: "example_dag"
+      ITEST_TIMEOUT: "600"
+      ITEST_POLL_EVERY: "5"
+
+      AIRFLOW_USERNAME: "admin"
+      AIRFLOW_PASSWORD: "admin"
+    # (optionnal) JUnit
+    #  JUNIT_XML_PATH: "/app/itests-report/junit.xml"
+    # (optionnal)  flags pytest
+    #  EXTRA_PYTEST_ARGS: "-k test_run_success -vv"

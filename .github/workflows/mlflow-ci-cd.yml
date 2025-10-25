@@ -16,7 +16,7 @@ jobs:
     runs-on: [self-hosted]
     strategy:
       matrix:
-        service: [mlflow, mlflow_test, postgres, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor, redis, airflow_worker]
+        service: [mlflow, mlflow_test, postgres, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor, redis, airflow_worker, airflow_test]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -64,7 +64,7 @@ jobs:
     needs: [clear-containers]
     strategy:
       matrix:
-        service: [mlflow, mlflow_test, postgres, redis, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor, airflow_worker]
+        service: [mlflow, mlflow_test, postgres, redis, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor, airflow_worker, airflow_test]
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -162,13 +162,6 @@ jobs:
           echo "docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS  ${{ matrix.service }}:$TAG "
           docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS ${{ matrix.service }}:$TAG 
 
-          # NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
-          # # Ajout des alias réseau après le démarrage du conteneur
-          # if [ -n "$NETWORK_ALIASES" ] && [ "$NETWORK_ALIASES" != "null" ]; then
-          #     for alias in $(echo "$NETWORK_ALIASES" | yq eval '.[]' - 2>/dev/null); do
-          #         docker network connect --alias "$alias" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $alias"
-          #     done
-          # fi
 
           docker network connect --alias "$SERVICE" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $SERVICE"
 
@@ -178,7 +171,7 @@ jobs:
     needs: [create-network, build, start-containers]
     strategy:
       matrix:
-        service: [mlflow_test]
+        service: [mlflow_test, airflow_test]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -196,19 +189,19 @@ jobs:
           NETWORK_NAME="network-${BRANCH_NAME}"
           CONTAINER_NAME="${{ matrix.service }}-${BRANCH_NAME}"
           SERVICE="${{ matrix.service }}"
-          CONFIG=$(yq eval ".services[\"$SERVICE\"]" "docker-compose.tests.yml")
+          CONFIG=$(yq eval ".services[\"$SERVICE\"]" "docker-compose.test.yml")
 
           ENV_VARS=""
-          # Traiter les env_vars existantes
-          if [ "$(yq eval ".services[\"$SERVICE\"].env_vars != null" "docker-compose.tests.yml")" = "true" ]; then
+          if [ "$(yq eval ".services[\"$SERVICE\"].env_vars != null" "docker-compose.test.yml")" = "true" ]; then
+            # Traiter les env_vars existantes
             while read -r key value; do
                 processed_value=$(echo "$value" | sed "s/\${BRANCH_NAME}/$BRANCH_NAME/g" | sed "s/\${VERSION}/$VERSION/g")
                 echo "Clé: $key, Valeur: $processed_value"
                 ENV_VARS+=" -e $key=$processed_value"
-            done < <(yq eval ".services[\"$SERVICE\"].environment | to_entries | .[] | \"\(.key) \(.value)\"" "docker-compose.tests.yml")
+            done < <(yq eval ".services[\"$SERVICE\"].environment | to_entries | .[] | \"\(.key) \(.value)\"" "docker-compose.test.yml")
           fi
 
-          if [ "$(yq eval ".services[\"$SERVICE\"].cap_add != null" "docker-compose.tests.yml")" = "true" ]; then
+          if [ "$(yq eval ".services[\"$SERVICE\"].cap_add != null" "docker-compose.test.yml")" = "true" ]; then
             CAP_ADD=$(yq eval ".cap_add | join(\",\")" <<< "$CONFIG" || true)
             CAP_OPTIONS=""
             if [ "$CAP_ADD" != "null" ] && [ -n "$CAP_ADD" ]; then
@@ -218,21 +211,21 @@ jobs:
             fi
           fi
 
-          if [ "$(yq eval ".services[\"$SERVICE\"].ports != null" "docker-compose.tests.yml")" = "true" ]; then
-            # Extraire et traiter les ports exposés
-            EXPOSE_PORTS=$(yq eval ".ports | join(\",\")" <<< "$CONFIG" || true)
-            if [ "$EXPOSE_PORTS" != "null" ] && [ -n "$EXPOSE_PORTS" ]; then
-                for port in $(echo $EXPOSE_PORTS | tr ',' '\n'); do
+          if [ "$(yq eval ".services[\"$SERVICE\"].ports != null" "docker-compose.test.yml")" = "true" ]; then
+              # Extraire et traiter les ports exposés
+              EXPOSE_PORTS=$(yq eval ".ports | join(\",\")" <<< "$CONFIG" || true)
+              if [ "$EXPOSE_PORTS" != "null" ] && [ -n "$EXPOSE_PORTS" ]; then
+                  for port in $(echo $EXPOSE_PORTS | tr ',' '\n'); do
+                      # Extraire uniquement la partie à droite du ":"
                       CONTAINER_PORT=$(echo $port | cut -d':' -f2)
                       EXPOSE_OPTIONS+=" --expose=$CONTAINER_PORT"
-                done
-            fi
+                  done
+              fi
           fi
-
 
           # Ajouter la gestion des volumes
           VOLUMES_OPTIONS=""
-          if [ "$(yq eval ".services[\"$SERVICE\"].volumes != null" "docker-compose.tests.yml")" = "true" ]; then
+          if [ "$(yq eval ".services[\"$SERVICE\"].volumes != null" "docker-compose.test.yml")" = "true" ]; then
             VOLUMES=$(yq eval ".volumes | join(\",\")" <<< "$CONFIG" || true)
             if [ "$VOLUMES" != "null" ] && [ -n "$VOLUMES" ]; then
                 for volume in $(echo $VOLUMES | tr ',' '\n'); do
@@ -241,26 +234,12 @@ jobs:
             fi
           fi
 
-
-          docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS  ${{ matrix.service }}:$TAG 
           echo "docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS  ${{ matrix.service }}:$TAG "
+          docker run -d $CAP_OPTIONS --name $CONTAINER_NAME $ENV_VARS $VOLUMES_OPTIONS $EXPOSE_OPTIONS ${{ matrix.service }}:$TAG 
 
-
-          # NETWORK_ALIASES=$(yq eval ".network-alias // []" <<< "$CONFIG" || echo "")
-          # # Ajout des alias réseau après le démarrage du conteneur
-          # if [ -n "$NETWORK_ALIASES" ] && [ "$NETWORK_ALIASES" != "null" ]; then
-          #     for alias in $(echo "$NETWORK_ALIASES" | yq eval '.[]' - 2>/dev/null); do
-          #         docker network connect --alias "$alias" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $alias"
-          #     done
-          # fi
 
           docker network connect --alias "$SERVICE" "$NETWORK_NAME" "$CONTAINER_NAME" || echo "Erreur lors de l'ajout de l'alias $SERVICE"
-        
-          CONTAINER_EXIT_CODE=$(docker wait $CONTAINER_NAME)
-          if [ "$CONTAINER_EXIT_CODE" -ne 0 ]; then
-              echo "Container ${{ matrix.service }} exited with code $CONTAINER_EXIT_CODE"
-              exit $CONTAINER_EXIT_CODE
-          fi
+
 
   prune-unused-images:
     runs-on: [self-hosted]
@@ -277,7 +256,7 @@ jobs:
     if: always()
     strategy:
       matrix:
-        service: [mlflow, mlflow_test, postgres, redis, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor, airflow_worker]
+        service: [mlflow, mlflow_test, postgres, redis, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor, airflow_worker, airflow_test]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
