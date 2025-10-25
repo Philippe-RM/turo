@@ -1,0 +1,175 @@
+{
+  "uid": "af-mlf-statsd-obsv",
+  "title": "Airflow & MLflow — StatsD (OK avec tes métriques)",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "type": "constant",
+        "name": "airflow_job",
+        "label": "Airflow job",
+        "query": "airflow_statsd"
+      },
+      {
+        "type": "constant",
+        "name": "mlflow_job",
+        "label": "MLflow job",
+        "query": "mlflow_statsd"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Airflow — Import errors",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
+      "targets": [
+        { "expr": "airflow_dag_processing_import_errors{job=\"$airflow_job\"}", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Airflow — Tasks running",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
+      "targets": [
+        { "expr": "airflow_executor_running_tasks{job=\"$airflow_job\"}", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Airflow — Open slots",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
+      "targets": [
+        { "expr": "airflow_executor_open_slots{job=\"$airflow_job\"}", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "MLflow — Gunicorn workers",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
+      "targets": [
+        { "expr": "mlflow_gunicorn_workers{job=\"$mlflow_job\"}", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Airflow — Scheduler loop duration (p50/p90/p99)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" } },
+      "targets": [
+        { "expr": "airflow_scheduler_scheduler_loop_duration{job=\"$airflow_job\",quantile=\"0.5\"}", "legendFormat": "p50", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "airflow_scheduler_scheduler_loop_duration{job=\"$airflow_job\",quantile=\"0.9\"}", "legendFormat": "p90", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "airflow_scheduler_scheduler_loop_duration{job=\"$airflow_job\",quantile=\"0.99\"}", "legendFormat": "p99", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Airflow — DAG run duration success (p50/p90/p99)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" } },
+      "targets": [
+        { "expr": "airflow_dagrun_duration_success{job=\"$airflow_job\",quantile=\"0.5\"}", "legendFormat": "p50", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "airflow_dagrun_duration_success{job=\"$airflow_job\",quantile=\"0.9\"}", "legendFormat": "p90", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "airflow_dagrun_duration_success{job=\"$airflow_job\",quantile=\"0.99\"}", "legendFormat": "p99", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Airflow — First task scheduling delay (p50/p90/p99)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" } },
+      "targets": [
+        { "expr": "airflow_dagrun_first_task_scheduling_delay{job=\"$airflow_job\",quantile=\"0.5\"}", "legendFormat": "p50", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "airflow_dagrun_first_task_scheduling_delay{job=\"$airflow_job\",quantile=\"0.9\"}", "legendFormat": "p90", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "airflow_dagrun_first_task_scheduling_delay{job=\"$airflow_job\",quantile=\"0.99\"}", "legendFormat": "p99", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Airflow — Scheduler heartbeat (events/s)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" } },
+      "targets": [
+        { "expr": "rate(airflow_scheduler_heartbeat{job=\"$airflow_job\"}[5m])", "legendFormat": "heartbeat/s", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Airflow — Tasks created (rate)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" } },
+      "targets": [
+        { "expr": "rate(airflow_task_instance_created{job=\"$airflow_job\"}[5m])", "legendFormat": "all", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "rate(airflow_task_instance_created_PythonOperator{job=\"$airflow_job\"}[5m])", "legendFormat": "PythonOperator", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "rate(airflow_task_instance_created_EmptyOperator{job=\"$airflow_job\"}[5m])", "legendFormat": "EmptyOperator", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Airflow — Executor queue/open slots",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" } },
+      "targets": [
+        { "expr": "airflow_executor_queued_tasks{job=\"$airflow_job\"}", "legendFormat": "queued", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "airflow_executor_open_slots{job=\"$airflow_job\"}", "legendFormat": "open slots", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Airflow — DAG bag / parse time",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" } },
+      "targets": [
+        { "expr": "airflow_dagbag_size{job=\"$airflow_job\"}", "legendFormat": "dagbag size", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "airflow_dag_processing_total_parse_time{job=\"$airflow_job\"}", "legendFormat": "total parse time", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Airflow — File path queue size & updates/s",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" } },
+      "targets": [
+        { "expr": "airflow_dag_processing_file_path_queue_size{job=\"$airflow_job\"}", "legendFormat": "queue size", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "rate(airflow_dag_processing_file_path_queue_update_count{job=\"$airflow_job\"}[5m])", "legendFormat": "updates/s", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Airflow — Schedule delay (avg via sum/count rates)",
+      "description": "Certains quantiles sont NaN → on calcule une moyenne glissante : rate(sum)/rate(count).",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 36 },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" } },
+      "targets": [
+        {
+          "expr": "rate(airflow_dagrun_schedule_delay_sum{job=\"$airflow_job\"}[5m]) / rate(airflow_dagrun_schedule_delay_count{job=\"$airflow_job\"}[5m])",
+          "legendFormat": "avg schedule delay (s)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "MLflow — Gunicorn logs (rate)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 44 },
+      "options": { "legend": { "showLegend": true, "placement": "bottom" } },
+      "targets": [
+        { "expr": "rate(mlflow_gunicorn_log_error{job=\"$mlflow_job\"}[5m])", "legendFormat": "log_error/s", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "rate(mlflow_gunicorn_log_exception{job=\"$mlflow_job\"}[5m])", "legendFormat": "log_exception/s", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ]
+    }
+  ]
+}
