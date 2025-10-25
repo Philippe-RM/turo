@@ -16,7 +16,7 @@ jobs:
     runs-on: [self-hosted]
     strategy:
       matrix:
-        service: [mlflow, mlflow_test, postgres, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor, redis, airflow_worker]
+        service: [mlflow, mlflow_test, postgres, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor, redis, airflow_worker, airflow_test]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -64,7 +64,7 @@ jobs:
     needs: [clear-containers]
     strategy:
       matrix:
-        service: [mlflow, mlflow_test, postgres, redis, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor, airflow_worker]
+        service: [mlflow, mlflow_test, postgres, redis, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor, airflow_worker, airflow_test]
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -178,7 +178,7 @@ jobs:
     needs: [create-network, build, start-containers]
     strategy:
       matrix:
-        service: [mlflow_test]
+        service: [mlflow_test, airflow_test]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -277,7 +277,7 @@ jobs:
     if: always()
     strategy:
       matrix:
-        service: [mlflow, mlflow_test, postgres, redis, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor, airflow_worker]
+        service: [mlflow, mlflow_test, postgres, redis, airflow_init, airflow_api-server, airflow_scheduler, airflow_triggerer, airflow_dag-processor, airflow_worker, airflow_test]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
