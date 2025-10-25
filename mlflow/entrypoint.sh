@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Définir le séparateur
+IFS=', ' read -r -a MODEL_NAMES <<< "${MODEL_NAMES}"
+IFS=', ' read -r -a MODEL_PATHS <<< "${MODEL_PATHS}"
+IFS=', ' read -r -a MODEL_PORTS <<< "${MODEL_PORTS}"
+
 # Ensure required directories exist (including sqlite backend path)
-# (The MLflow Tracking server started below serves the UI as well.)
 if [[ "$BACKEND_URI" == sqlite:* ]]; then
   db_path="${BACKEND_URI#sqlite:////}"
   mkdir -p "$(dirname "$db_path")" || true
 fi
-mkdir -p "$ARTIFACT_ROOT" "$LOG_DIR"
-: > "$ACCESS_LOG_FILE" || true
-: > "$ERROR_LOG_FILE" || true
+
+# Create directories for each model
+for i in "${!MODEL_NAMES[@]}"; do
+  model_name=${MODEL_NAMES[$i]}
+  model_path=${MODEL_PATHS[$i]}
+  # Assurez-vous que le chemin est relatif à PROJECT_DIR
+  full_model_path="$PROJECT_DIR/$model_path"
+  mkdir -p "$ARTIFACT_ROOT/$model_name" "$LOG_DIR/$model_name"
+  : > "$LOG_DIR/$model_name/access.log" || true
+  : > "$LOG_DIR/$model_name/error.log" || true
+done
 
 # Build Gunicorn options: daemonize + file outputs + log level
-# Note: when running as a daemon, logging to "-" (stdout) is not recommended.
 GUNICORN_OPTS="--daemon --log-level ${GUNICORN_LOG_LEVEL} \
                --access-logfile ${ACCESS_LOG_FILE} \
                --error-logfile ${ERROR_LOG_FILE} \
@@ -20,18 +31,13 @@ GUNICORN_OPTS="--daemon --log-level ${GUNICORN_LOG_LEVEL} \
                --statsd-host=statsd-exporter:9125 \
                --statsd-prefix=mlflow "
 
-
-# ——————————————————————————————
-# 1) Start the MLflow Tracking server (includes the UI) as a daemon via Gunicorn
-# ——————————————————————————————
+# Start the MLflow Tracking server (includes the UI) as a daemon via Gunicorn
 mlflow server --expose-prometheus "/mlflow-metrics" \
   --backend-store-uri "$BACKEND_URI" \
   --default-artifact-root "file://$ARTIFACT_ROOT" \
   --host 0.0.0.0 \
   --port "$TRACKING_PORT" \
-  --gunicorn-opts "$GUNICORN_OPTS" \
-  
-  
+  --gunicorn-opts "$GUNICORN_OPTS"
 
 export MLFLOW_TRACKING_URI="http://$TRACKING_HOST:$TRACKING_PORT"
 
@@ -60,12 +66,15 @@ PY
   fi
 done
 
-# ——————————————————————————————
-# 2) Get or create the Experiment and retrieve its ID
-# ——————————————————————————————
-EXPERIMENT_ID=$(python - <<'PY'
+# Get or create the Experiment and retrieve its ID for each model
+for i in "${!MODEL_NAMES[@]}"; do
+  model_name=${MODEL_NAMES[$i]}
+  model_path=${MODEL_PATHS[$i]}
+  model_port=${MODEL_PORTS[$i]}
+  full_model_path="$PROJECT_DIR/$model_path"
+  EXPERIMENT_ID=$(python - <<PY
 import os, mlflow
-name = os.environ.get("EXPERIMENT_NAME","XGBoost_Experiment")
+name = "${model_name}"
 art_root = os.environ.get("ARTIFACT_ROOT","/mlflow/artifacts").rstrip("/")
 client = mlflow.MlflowClient()
 exp = client.get_experiment_by_name(name)
@@ -76,28 +85,22 @@ else:
 print(eid)
 PY
 )
-export EXPERIMENT_ID
+  export EXPERIMENT_ID
+  echo "Experiment: $model_name (id=$EXPERIMENT_ID)"
 
-echo "Experiment: $EXPERIMENT_NAME (id=$EXPERIMENT_ID)"
+  # Run the MLflow project for each model
+  if [[ ! -f "$full_model_path/MLproject" ]]; then
+    echo "ERREUR: fichier MLproject introuvable à l’emplacement: $full_model_path"
+    exit 1
+  fi
+  echo "Exécution du projet: $full_model_path"
+  mlflow run "$full_model_path" --experiment-id "$EXPERIMENT_ID" --env-manager local --run-name "${model_name}_run"
 
-# ——————————————————————————————
-# 3) Run the MLflow project (no Conda in image -> use local env manager)
-# ——————————————————————————————
-if [[ ! -f "$PROJECT_DIR/MLproject" ]]; then
-  echo "ERREUR: fichier MLproject introuvable à l’emplacement: $PROJECT_DIR"
-  exit 1
-fi
-
-echo "Exécution du projet: $PROJECT_DIR"
-mlflow run "$PROJECT_DIR" --experiment-id "$EXPERIMENT_ID" --env-manager local
-
-# ——————————————————————————————
-# 4) Fetch the latest FINISHED run that contains a 'model' artifact
-# ——————————————————————————————
-RUN_ID=$(python - <<'PY'
+  # Fetch the latest FINISHED run that contains a 'model' artifact for each model
+  RUN_ID=$(python - <<PY
 import os, mlflow
 client = mlflow.MlflowClient()
-exp_id = os.environ["EXPERIMENT_ID"]
+exp_id = "$EXPERIMENT_ID"
 runs = client.search_runs([exp_id], order_by=["attributes.start_time DESC"], max_results=50)
 for r in runs:
     if r.info.status == "FINISHED":
@@ -109,16 +112,18 @@ for r in runs:
             continue
 PY
 )
+  echo "RUN_ID for $model_name: $RUN_ID"
 
-# ——————————————————————————————
-# 5) Serve the model (blocking) or keep container alive by tailing logs
-# ——————————————————————————————
-if [[ -n "${RUN_ID:-}" ]]; then
-  echo "Serving modèle du run: $RUN_ID"
-  exec mlflow models serve -m "runs:/$RUN_ID/model" \
-       --env-manager local --host 0.0.0.0 -p "$MODEL_PORT"
-else
-  echo "Aucun run terminé avec un artefact 'model' n’a été trouvé."
-  echo "Le serveur MLflow (UI incluse) tourne en arrière-plan. Suivi des logs…"
-  exec tail -F "$ERROR_LOG_FILE" "$ACCESS_LOG_FILE"
-fi
+  # Serve the model in the background
+  if [[ -n "${RUN_ID:-}" ]]; then
+    echo "Serving modèle $model_name du run: $RUN_ID sur le port $model_port"
+    mlflow models serve -m "runs:/$RUN_ID/model" \
+         --env-manager local --host 0.0.0.0 -p "$model_port" &
+  else
+    echo "Aucun run terminé avec un artefact 'model' n’a été trouvé pour $model_name."
+  fi
+done
+
+# Keep container alive by tailing logs
+echo "Le serveur MLflow (UI incluse) tourne en arrière-plan. Suivi des logs…"
+exec tail -F "$ERROR_LOG_FILE" "$ACCESS_LOG_FILE"
