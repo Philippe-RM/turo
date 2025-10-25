@@ -1,4 +1,4 @@
-FROM rayproject/ray:2.51.0.b6b1fa-cpu
+FROM rayproject/ray:2.50.1-cpu
 
 USER root
 WORKDIR /app

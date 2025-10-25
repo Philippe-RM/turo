@@ -17,7 +17,7 @@ services:
     ports:
       - "6380:6380"
       - "8265:8265"
-
+      - "10001:10001"
   redis:
     build: ./redis
     container_name: redis
