@@ -17,6 +17,12 @@ services:
     image: mlflow_test:local
     profiles: ["do-not-run-by-default"]
 
+  redis:
+    build: ./redis
+    container_name: redis
+    ports:
+      - "6379:6379"
+
   postgres:
     build: ./postgres
     container_name: postgres
