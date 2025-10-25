@@ -18,6 +18,8 @@ services:
     volumes:
       - ./datas:/app/datas
       - ./mlruns:/app/mlruns
+      - ./mlflow_artifacts:/mlflow/artifacts
+
 
   ray:
     build: ./ray
@@ -26,6 +28,11 @@ services:
       - "6380:6380"
       - "8265:8265"
       - "10001:10001"
+      - "8000:8000"
+    volumes:
+      - ./mlflow_artifacts:/mlflow/artifacts
+
+
   redis:
     build: ./redis
     container_name: redis
