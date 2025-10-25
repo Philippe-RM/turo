@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   # --- EXISTANT ---
   mlflow:
@@ -56,7 +54,7 @@ services:
       - "8080:8080"
     depends_on:
       - postgres
-      - airflow-init
+      - airflow_init
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
@@ -72,7 +70,7 @@ services:
     container_name: airflow-scheduler
     depends_on:
       - postgres
-      - airflow-init
+      - airflow_init
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
@@ -87,7 +85,7 @@ services:
     container_name: airflow-triggerer
     depends_on:
       - postgres
-      - airflow-init
+      - airflow_init
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
@@ -102,7 +100,7 @@ services:
     container_name: airflow_dag-processor
     depends_on:
       - postgres
-      - airflow-init
+      - airflow_init
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
