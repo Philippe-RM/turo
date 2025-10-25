@@ -11,11 +11,12 @@ services:
       - ./datas:/app/datas
       - ./mlruns:/app/mlruns
 
-  # Image des tests (pas démarrée par compose, Airflow l'utilise)
-  mlflow_test:
-    build: ./mlflow_test
-    image: mlflow_test:local
-    profiles: ["do-not-run-by-default"]
+  ray:
+    build: ./ray
+    container_name: ray
+    ports:
+      - "6380:6380"
+      - "8265:8265"
 
   redis:
     build: ./redis
@@ -86,6 +87,8 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       DB_HOST: postgres
       DB_PORT: 5432
+
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
     volumes:
       - ./dags:/opt/airflow/dags
       - ./init-data:/init-data
