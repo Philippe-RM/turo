@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.8-slim
+FROM python:3.9.23-slim
 
 # -------- Default environment variables (override in docker-compose) --------
 ENV GIT_PYTHON_REFRESH ${GIT_PYTHON_REFRESH:-"quiet"}
@@ -40,6 +40,9 @@ RUN mkdir -p /mlflow/artifacts /mlflow/logs
 
 # Expose MLflow tracking UI and model serving ports
 EXPOSE 5000 5001 5002 5003
+
+
+COPY serve_with_ray.py .
 
 # Copy entrypoint and make it executable
 COPY entrypoint.sh .
