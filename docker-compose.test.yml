@@ -17,7 +17,7 @@ services:
     environment:
       AIRFLOW_UI_BASE_URL: "http://airflow_api-server:8080"
       AIRFLOW_API_PREFIX: "/api/v2"
-      DAG_IDS: "example_dag"
+      DAG_IDS: "example_dag, ray_integration"
       ITEST_TIMEOUT: "600"
       ITEST_POLL_EVERY: "5"
 
