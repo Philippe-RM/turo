@@ -80,6 +80,7 @@ services:
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
+      - ./mlflow_artifacts:/mlflow/artifacts
       - ./init-data:/init-data
 
   airflow_api-server:
@@ -120,6 +121,7 @@ services:
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
+      - ./mlflow_artifacts:/mlflow/artifacts
       - ./init-data:/init-data
       - ./mlflow/projects:/app/projects
 
@@ -155,6 +157,7 @@ services:
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
+      - ./mlflow_artifacts:/mlflow/artifacts
       - ./init-data:/init-data
       - ./mlflow/projects:/app/projects
 
@@ -190,6 +193,7 @@ services:
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
+      - ./mlflow_artifacts:/mlflow/artifacts
       - ./init-data:/init-data
       - ./mlflow/projects:/app/projects
 
@@ -224,6 +228,7 @@ services:
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
+      - ./mlflow_artifacts:/mlflow/artifacts
       - ./init-data:/init-data
       - ./mlflow/projects:/app/projects
 
@@ -258,6 +263,7 @@ services:
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
+      - ./mlflow_artifacts:/mlflow/artifacts
       - ./init-data:/init-data
       - ./mlflow/projects:/app/projects
 
