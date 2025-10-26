@@ -1,0 +1,7 @@
+name: SVR MLflow Project
+
+conda_env: conda.yaml
+
+entry_points:
+  main:
+    command: "python train.py"
