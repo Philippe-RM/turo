@@ -3,3 +3,4 @@ mlruns/*
 **/__pycache__/
 mlflow_artifacts/*
 init-data/init-complete
+mlflow/projects/CatBoost/catboost_info/*
