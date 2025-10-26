@@ -111,6 +111,12 @@ services:
 
       AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
       RAY_ADDRESS: "ray://ray:10001"
+
+      PROJECT_DIR: "/app/projects"
+      TRACKING_HOST: "mlflow"
+      TRACKING_PORT: "5000"
+      MODEL_NAMES: "XGBoost SVR, CatBoost, KNN"
+      MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
@@ -139,6 +145,13 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       RAY_ADDRESS: "ray://ray:10001"
+
+      PROJECT_DIR: "/app/projects"
+      TRACKING_HOST: "mlflow"
+      TRACKING_PORT: "5000"
+      MODEL_NAMES: "XGBoost SVR, CatBoost, KNN"
+      MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
+
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
@@ -167,6 +180,13 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       RAY_ADDRESS: "ray://ray:10001"
+
+      PROJECT_DIR: "/app/projects"
+      TRACKING_HOST: "mlflow"
+      TRACKING_PORT: "5000"
+      MODEL_NAMES: "XGBoost SVR, CatBoost, KNN"
+      MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
+
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
@@ -194,6 +214,13 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       RAY_ADDRESS: "ray://ray:10001"
+
+      PROJECT_DIR: "/app/projects"
+      TRACKING_HOST: "mlflow"
+      TRACKING_PORT: "5000"
+      MODEL_NAMES: "XGBoost SVR, CatBoost, KNN"
+      MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
+
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
@@ -222,6 +249,12 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       RAY_ADDRESS: "ray://ray:10001"
+
+      PROJECT_DIR: "/app/projects"
+      TRACKING_HOST: "mlflow"
+      TRACKING_PORT: "5000"
+      MODEL_NAMES: "XGBoost SVR, CatBoost, KNN"
+      MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
