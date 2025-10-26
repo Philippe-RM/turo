@@ -177,6 +177,47 @@ data = json.load(open(path))
 data.append({"name": "${model_name}", "uri": "${MODEL_URI}", "route_prefix": "/${model_name}"})
 json.dump(data, open(path, "w"))
 PY
+
+
+
+
+
+  echo "Enregistrement de ${model_name} depuis ${MODEL_URI} dans la Registry…"
+  python - <<PY
+import mlflow
+from mlflow.tracking import MlflowClient
+
+name = "${model_name}"
+uri  = "${MODEL_URI}"
+client = MlflowClient()
+
+# Crée le Registered Model s'il n'existe pas
+try:
+    client.get_registered_model(name)
+except Exception:
+    client.create_registered_model(name)
+
+# Enregistre une nouvelle version depuis le run
+mv = mlflow.register_model(model_uri=uri, name=name)
+print(f"RegisteredModel: {name} v{mv.version} (source: {uri})")
+
+# (optionnel) Transition en Staging et archive les précédentes
+client.transition_model_version_stage(
+    name=name,
+    version=mv.version,
+    stage="Staging",
+    archive_existing_versions=True
+)
+print(f"Transitioned {name} v{mv.version} -> Staging")
+PY
+
+
+
+
+
+
+
+
   else
     echo "Aucun run terminé avec un artefact 'model' n’a été trouvé pour $model_name."
     ALL_OK=false
