@@ -2,3 +2,4 @@ jupyter/notebooks/analyses/catboost_info/*
 mlruns/*
 **/__pycache__/
 mlflow_artifacts/*
+init-data/init-complete
