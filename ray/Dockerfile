@@ -1,5 +1,4 @@
-FROM rayproject/ray:2.50.1-cpu
-
+FROM rayproject/ray:2.50.1-py312-cpu
 USER root
 WORKDIR /app
 

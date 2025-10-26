@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.9.23-slim
+FROM python:3.12.9
 
 # -------- Default environment variables (override in docker-compose) --------
 ENV GIT_PYTHON_REFRESH ${GIT_PYTHON_REFRESH:-"quiet"}
@@ -20,11 +20,17 @@ ENV GUNICORN_LOG_LEVEL ${GUNICORN_LOG_LEVEL:-"info"}
 ENV ACCESS_LOG_FILE ${ACCESS_LOG_FILE:-"$LOG_DIR/mlflow_access.log"}
 ENV ERROR_LOG_FILE ${ERROR_LOG_FILE:-"$LOG_DIR/mlflow_error.log"}
 
+ENV MLFLOW_SERVER_ALLOWED_HOSTS ${MLFLOW_SERVER_ALLOWED_HOSTS:-"*"}
+
+
+ENV RAY_ADDRESS ${RAY_ADDRESS:-"ray://ray:10001"}
+
+
 # Set the working directory
 WORKDIR /app
 
 
-
+RUN pip install --upgrade pip
 # Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \

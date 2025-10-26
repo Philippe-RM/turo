@@ -1,4 +1,4 @@
-FROM apache/airflow:3.0.6-python3.9
+FROM apache/airflow:3.0.6
 
 
 

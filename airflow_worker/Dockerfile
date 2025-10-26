@@ -1,4 +1,4 @@
-FROM apache/airflow:3.0.6-python3.9
+FROM apache/airflow:3.0.6
 
 ENV AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR:-"CeleryExecutor"}
 ENV AIRFLOW__CORE__LOAD_EXAMPLES=${AIRFLOW__CORE__LOAD_EXAMPLES:-"false"}
@@ -23,7 +23,7 @@ ENV AIRFLOW__API__SECRET_KEY=${AIRFLOW__API__SECRET_KEY:-"f5612881f0babd596abee4
 
 WORKDIR /app
 
-
+RUN pip install --upgrade pip
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 

@@ -1,4 +1,4 @@
-FROM apache/airflow:3.0.6-python3.9
+FROM apache/airflow:3.0.6
 
 ENV AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR:-"CeleryExecutor"}
 ENV AIRFLOW__CORE__LOAD_EXAMPLES=${AIRFLOW__CORE__LOAD_EXAMPLES:-"false"}
