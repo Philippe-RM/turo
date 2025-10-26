@@ -76,6 +76,7 @@ services:
       ADMIN_USERNAME: admin
       ADMIN_PASSWORD: admin
       ADMIN_EMAIL: admin@example.com
+      RAY_ADDRESS: "ray://ray:10001"
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
@@ -109,6 +110,7 @@ services:
       DB_PORT: 5432
 
       AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
+      RAY_ADDRESS: "ray://ray:10001"
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
@@ -135,6 +137,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       DB_HOST: postgres
       DB_PORT: 5432
+      RAY_ADDRESS: "ray://ray:10001"
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
@@ -161,6 +164,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       DB_HOST: postgres
       DB_PORT: 5432
+      RAY_ADDRESS: "ray://ray:10001"
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
@@ -186,6 +190,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       DB_HOST: postgres
       DB_PORT: 5432
+      RAY_ADDRESS: "ray://ray:10001"
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
@@ -212,6 +217,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       DB_HOST: postgres
       DB_PORT: 5432
+      RAY_ADDRESS: "ray://ray:10001"
     volumes:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
