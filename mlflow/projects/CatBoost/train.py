@@ -4,6 +4,7 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, e
 import pandas as pd
 import numpy as np
 from catboost import CatBoostRegressor
+from sklearn.preprocessing import StandardScaler
 import mlflow
 
 # Initialiser Ray
@@ -14,9 +15,14 @@ def evaluate_fold(train_index, test_index, X, y, params):
     X_train, X_test = X.iloc[train_index], X.iloc[test_index]
     y_train, y_test = y.iloc[train_index], y.iloc[test_index]
 
+    # Normaliser les données
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
     model = CatBoostRegressor(**params)
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
+    model.fit(X_train_scaled, y_train)
+    y_pred = model.predict(X_test_scaled)
 
     mse = mean_squared_error(y_test, y_pred)
     mae = mean_absolute_error(y_test, y_pred)
@@ -62,9 +68,13 @@ def main():
     mean_explained_variance = np.mean([res["explained_variance"] for res in cv_results])
     mean_max_error = np.mean([res["max_error"] for res in cv_results])
 
+    # Normaliser les données complètes
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
     # Train final model on full dataset
     model = CatBoostRegressor(**params)
-    model.fit(X, y)
+    model.fit(X_scaled, y)
 
     # Log metrics and model with MLflow
     with mlflow.start_run():
