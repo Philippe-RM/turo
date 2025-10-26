@@ -1,0 +1,7 @@
+mlflow
+pandas
+scikit-learn
+xgboost
+
+catboost
+numpy==2.3.4

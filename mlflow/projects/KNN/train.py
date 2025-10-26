@@ -3,7 +3,7 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, explained_variance_score, max_error
 import pandas as pd
 import numpy as np
-from xgboost import XGBRegressor
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.preprocessing import StandardScaler
 import mlflow
 
@@ -20,7 +20,7 @@ def evaluate_fold(train_index, test_index, X, y, params):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    model = XGBRegressor(**params)
+    model = KNeighborsRegressor(**params)
     model.fit(X_train_scaled, y_train)
     y_pred = model.predict(X_test_scaled)
 
@@ -47,7 +47,7 @@ def main():
     y = data['target']
 
     # Define the model parameters
-    params = {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1, "random_state": 42}
+    params = {"n_neighbors": 26, "p": 3, "weights": 'uniform'}
 
     # Define KFold for cross-validation
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
@@ -73,7 +73,7 @@ def main():
     X_scaled = scaler.fit_transform(X)
 
     # Train final model on full dataset
-    model = XGBRegressor(**params)
+    model = KNeighborsRegressor(**params)
     model.fit(X_scaled, y)
 
     # Log metrics and model with MLflow
@@ -87,7 +87,7 @@ def main():
         mlflow.log_metric("mean_cv_max_error", mean_max_error)
         # Create an input example from the first row of X as a DataFrame
         input_example = X.iloc[[0]]
-        mlflow.xgboost.log_model(model, "model", input_example=input_example)
+        mlflow.sklearn.log_model(model, "model", input_example=input_example)
 
 if __name__ == "__main__":
     main()

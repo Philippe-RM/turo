@@ -1,5 +1,13 @@
 services:
   # --- EXISTANT ---
+
+  jupyter:
+    build: ./jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./jupyter/notebooks:/notebooks
+
   mlflow:
     build: ./mlflow
     image: mlflow:local          # tag local pour Airflow
@@ -7,10 +15,16 @@ services:
     ports:
       - "5000:5000"              # UI tracking
       - "5001:5001"              # serving modèle
+    environment:
+      MODEL_NAMES: "XGBoost, SVR, CatBoost, KNN"
+      MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
+      MODEL_PORTS: "5001, 5002, 5003, 5004"
+      RAY_ADDRESS: "ray://ray:10001"
     volumes:
       - ./datas:/app/datas
       - ./mlruns:/app/mlruns
-
+      - ./mlflow_artifacts:/mlflow/artifacts
+      - ./mlflow/projects:/app/projects
   ray:
     build: ./ray
     container_name: ray
@@ -18,6 +32,11 @@ services:
       - "6380:6380"
       - "8265:8265"
       - "10001:10001"
+      - "8000:8000"
+    volumes:
+      - ./mlflow_artifacts:/mlflow/artifacts
+
+
   redis:
     build: ./redis
     container_name: redis
@@ -57,8 +76,11 @@ services:
       ADMIN_USERNAME: admin
       ADMIN_PASSWORD: admin
       ADMIN_EMAIL: admin@example.com
+      RAY_ADDRESS: "ray://ray:10001"
     volumes:
+      - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
+      - ./mlflow_artifacts:/mlflow/artifacts
       - ./init-data:/init-data
 
   airflow_api-server:
@@ -89,9 +111,19 @@ services:
       DB_PORT: 5432
 
       AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
+      RAY_ADDRESS: "ray://ray:10001"
+
+      PROJECT_DIR: "/app/projects"
+      TRACKING_HOST: "mlflow"
+      TRACKING_PORT: "5000"
+      MODEL_NAMES: "XGBoost, SVR, CatBoost, KNN"
+      MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
     volumes:
+      - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
+      - ./mlflow_artifacts:/mlflow/artifacts
       - ./init-data:/init-data
+      - ./mlflow/projects:/app/projects
 
   airflow-scheduler:
     build: ./airflow_scheduler
@@ -114,9 +146,20 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       DB_HOST: postgres
       DB_PORT: 5432
+      RAY_ADDRESS: "ray://ray:10001"
+
+      PROJECT_DIR: "/app/projects"
+      TRACKING_HOST: "mlflow"
+      TRACKING_PORT: "5000"
+      MODEL_NAMES: "XGBoost, SVR, CatBoost, KNN"
+      MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
+
     volumes:
+      - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
+      - ./mlflow_artifacts:/mlflow/artifacts
       - ./init-data:/init-data
+      - ./mlflow/projects:/app/projects
 
   airflow-triggerer:
     build: ./airflow_triggerer
@@ -139,9 +182,20 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       DB_HOST: postgres
       DB_PORT: 5432
+      RAY_ADDRESS: "ray://ray:10001"
+
+      PROJECT_DIR: "/app/projects"
+      TRACKING_HOST: "mlflow"
+      TRACKING_PORT: "5000"
+      MODEL_NAMES: "XGBoost, SVR, CatBoost, KNN"
+      MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
+
     volumes:
+      - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
+      - ./mlflow_artifacts:/mlflow/artifacts
       - ./init-data:/init-data
+      - ./mlflow/projects:/app/projects
 
   airflow_dag-processor:
     build: ./airflow_dag-processor
@@ -163,9 +217,20 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       DB_HOST: postgres
       DB_PORT: 5432
+      RAY_ADDRESS: "ray://ray:10001"
+
+      PROJECT_DIR: "/app/projects"
+      TRACKING_HOST: "mlflow"
+      TRACKING_PORT: "5000"
+      MODEL_NAMES: "XGBoost, SVR, CatBoost, KNN"
+      MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
+
     volumes:
+      - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
+      - ./mlflow_artifacts:/mlflow/artifacts
       - ./init-data:/init-data
+      - ./mlflow/projects:/app/projects
 
   # NOUVEAU : worker Celery
   airflow-worker:
@@ -188,9 +253,19 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       DB_HOST: postgres
       DB_PORT: 5432
+      RAY_ADDRESS: "ray://ray:10001"
+
+      PROJECT_DIR: "/app/projects"
+      TRACKING_HOST: "mlflow"
+      TRACKING_PORT: "5000"
+      MODEL_NAMES: "XGBoost, SVR, CatBoost, KNN"
+      MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
     volumes:
+      - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
+      - ./mlflow_artifacts:/mlflow/artifacts
       - ./init-data:/init-data
+      - ./mlflow/projects:/app/projects
 
   prometheus:
     build: ./prometheus
@@ -208,7 +283,7 @@ services:
       --statsd.listen-udp=:9125
       --web.listen-address=:9102
     ports:
-      - "9102:9102"            # Expose si Prometheus est hors Docker
+      - "9102:9102"
 
 
   grafana:
@@ -218,7 +293,7 @@ services:
       - "3000:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin   # change-le après le 1er login
+      GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_DEFAULT_THEME: dark
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning

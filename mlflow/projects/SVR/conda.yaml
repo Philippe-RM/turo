@@ -3,10 +3,10 @@ channels:
   - conda-forge
 dependencies:
   - python=3.8
-  - xgboost
+  - scikit-learn
   - pandas
   - mlflow
   - pip
   - pip:
       - mlflow
-      - xgboost
+      - scikit-learn

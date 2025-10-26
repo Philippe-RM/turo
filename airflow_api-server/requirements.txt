@@ -1,1 +1,5 @@
+ray[default]==2.50.1
 apache-airflow[statsd]
+mlflow
+xgboost
+catboost
