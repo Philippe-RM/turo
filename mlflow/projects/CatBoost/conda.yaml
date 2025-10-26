@@ -1,0 +1,13 @@
+name: mlflow-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - catboost
+  - pandas
+  - mlflow
+  - pip
+  - pip:
+      - mlflow
+      - catboost
+
