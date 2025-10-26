@@ -30,8 +30,8 @@ def main():
         mlflow.log_param("weights", 'uniform')
         mlflow.log_metric("mse", mse)
         mlflow.log_metric("r2_score", r2)
-        # Create an input example from the first row of X_train
-        input_example = X_train.iloc[[0]].to_dict(orient='records')[0]
+        # Create an input example from the first row of X_train as a DataFrame
+        input_example = X_train.iloc[[0]]
         mlflow.sklearn.log_model(model, "model", input_example=input_example)
 
 if __name__ == "__main__":
