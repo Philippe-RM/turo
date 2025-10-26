@@ -19,6 +19,7 @@ services:
       MODEL_NAMES: "XGBoost SVR, CatBoost, KNN"
       MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
       MODEL_PORTS: "5001, 5002, 5003, 5004"
+      RAY_ADDRESS: "ray://ray:10001"
     volumes:
       - ./datas:/app/datas
       - ./mlruns:/app/mlruns
