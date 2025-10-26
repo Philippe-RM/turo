@@ -32,7 +32,9 @@ def main():
         mlflow.log_param("learning_rate", 0.02)
         mlflow.log_metric("mse", mse)
         mlflow.log_metric("r2_score", r2)
-        mlflow.catboost.log_model(model, "model")
+        # Create an input example from the first row of X_train
+        input_example = X_train.iloc[[0]].to_dict(orient='records')[0]
+        mlflow.catboost.log_model(model, "model", input_example=input_example)
 
 if __name__ == "__main__":
     main()
