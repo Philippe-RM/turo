@@ -22,9 +22,14 @@ ENV AIRFLOW_VAR_RAY_ADDRESS=${AIRFLOW_VAR_RAY_ADDRESS:-"ray://ray:10001"}
 ENV AIRFLOW__API__SECRET_KEY=${AIRFLOW__API__SECRET_KEY:-"f5612881f0babd596abee4264b41aba00277e64ee2e87473a824bae7d9e95203ed62e14cae29a7549c01da9c06144cd94d0af70da672c53e10d76a7fd385b586"}
 
 
-USER root
+
 WORKDIR /app
 
+RUN pip install --upgrade pip
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+USER root
 
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh

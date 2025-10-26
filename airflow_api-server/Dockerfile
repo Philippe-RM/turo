@@ -24,6 +24,11 @@ ENV AIRFLOW__API__SECRET_KEY=${AIRFLOW__API__SECRET_KEY:-"f5612881f0babd596abee4
 
 WORKDIR /app
 
+RUN pip install --upgrade pip
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
