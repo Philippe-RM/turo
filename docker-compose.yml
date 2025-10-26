@@ -15,11 +15,14 @@ services:
     ports:
       - "5000:5000"              # UI tracking
       - "5001:5001"              # serving modèle
+    environment:
+      MODEL_NAMES: "XGBoost SVR, CatBoost, KNN"
+      MODEL_PATHS: "XGBoost, SVR, CatBoost, KNN"
+      MODEL_PORTS: "5001, 5002, 5003, 5004"
     volumes:
       - ./datas:/app/datas
       - ./mlruns:/app/mlruns
       - ./mlflow_artifacts:/mlflow/artifacts
-
 
   ray:
     build: ./ray
