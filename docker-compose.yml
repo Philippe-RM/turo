@@ -24,7 +24,7 @@ services:
       - ./datas:/app/datas
       - ./mlruns:/app/mlruns
       - ./mlflow_artifacts:/mlflow/artifacts
-
+      - ./mlflow/projects:/app/projects
   ray:
     build: ./ray
     container_name: ray
@@ -115,6 +115,7 @@ services:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
       - ./init-data:/init-data
+      - ./mlflow/projects:/app/projects
 
   airflow-scheduler:
     build: ./airflow_scheduler
@@ -142,6 +143,7 @@ services:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
       - ./init-data:/init-data
+      - ./mlflow/projects:/app/projects
 
   airflow-triggerer:
     build: ./airflow_triggerer
@@ -169,6 +171,7 @@ services:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
       - ./init-data:/init-data
+      - ./mlflow/projects:/app/projects
 
   airflow_dag-processor:
     build: ./airflow_dag-processor
@@ -195,6 +198,7 @@ services:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
       - ./init-data:/init-data
+      - ./mlflow/projects:/app/projects
 
   # NOUVEAU : worker Celery
   airflow-worker:
@@ -222,6 +226,7 @@ services:
       - ./datas:/app/datas
       - ./dags:/opt/airflow/dags
       - ./init-data:/init-data
+      - ./mlflow/projects:/app/projects
 
   prometheus:
     build: ./prometheus

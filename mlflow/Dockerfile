@@ -48,7 +48,7 @@ EXPOSE 5000 5001 5002 5003
 
 
 # Copy project sources (MLflow projects)
-COPY projects /app/projects
+# COPY projects /app/projects
 
 COPY serve_with_ray.py .
 
