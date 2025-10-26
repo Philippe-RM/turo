@@ -23,8 +23,7 @@ ENV ERROR_LOG_FILE ${ERROR_LOG_FILE:-"$LOG_DIR/mlflow_error.log"}
 # Set the working directory
 WORKDIR /app
 
-# Copy project sources (MLflow projects)
-COPY projects /app/projects
+
 
 # Python dependencies
 COPY requirements.txt .
@@ -41,6 +40,9 @@ RUN mkdir -p /mlflow/artifacts /mlflow/logs
 # Expose MLflow tracking UI and model serving ports
 EXPOSE 5000 5001 5002 5003
 
+
+# Copy project sources (MLflow projects)
+COPY projects /app/projects
 
 COPY serve_with_ray.py .
 
