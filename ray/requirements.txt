@@ -1,7 +1,7 @@
 mlflow
-
 pandas
 scikit-learn
 xgboost
-mlflow
+
 catboost
+numpy==2.3.4
