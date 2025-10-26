@@ -166,6 +166,7 @@ def data_prep_reservations_ray():
         Reproduit la logique d'origine:
         - Corrélation (Pearson) avec 'total_reservations'
         - Sélection des variables |corr| > threshold (0.02 par défaut)
+        - Renomme la cible en 'target' dans le dataset final
         - Sauvegarde finale -> /app/datas/datas.csv
         """
         merged = pd.read_csv(merged_path)
@@ -179,6 +180,8 @@ def data_prep_reservations_ray():
             selected.append("total_reservations")
 
         final_df = num_df[selected].copy()
+        # Renommer la cible dans le fichier de sortie
+        final_df = final_df.rename(columns={"total_reservations": "target"})
         final_df.to_csv(OUTPUT_DATASET, index=False)
         return OUTPUT_DATASET
 
